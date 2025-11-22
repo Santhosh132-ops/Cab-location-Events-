@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Cab Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 100vh; width: 100%; }
+        body { margin: 0; padding: 0; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="status-box" style="position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.2); font-family: sans-serif;">
+        <div><strong>Status:</strong> <span id="ws-status">Connecting...</span></div>
+        <div><strong>Driver ID:</strong> <span id="driver-id">-</span></div>
+        <div><strong>Last Update:</strong> <span id="last-update">-</span></div>
+        <div id="log" style="font-size: 10px; color: gray; margin-top: 5px; max-height: 100px; overflow-y: auto;"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize Map
+        const map = L.map('map').setView([37.7749, -122.4194], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const markers = {};
+        const statusEl = document.getElementById('ws-status');
+        const driverIdEl = document.getElementById('driver-id');
+        const lastUpdateEl = document.getElementById('last-update');
+        const logEl = document.getElementById('log');
+
+        function log(msg) {
+            logEl.innerHTML = `<div>${new Date().toLocaleTimeString()} ${msg}</div>` + logEl.innerHTML;
+        }
+
+        // Connect to WebSocket
+        console.log("Attempting to connect to WebSocket...");
+        const ws = new WebSocket("ws://localhost:8000/ws");
+
+        ws.onopen = () => {
+            console.log("Connected to WebSocket");
+            statusEl.innerText = "Connected";
+            statusEl.style.color = "green";
+            log("WebSocket Connected");
+        };
+
+        ws.onclose = () => {
+            console.log("Disconnected from WebSocket");
+            statusEl.innerText = "Disconnected";
+            statusEl.style.color = "red";
+            log("WebSocket Disconnected");
+        };
+
+        ws.onerror = (err) => {
+            console.error("WebSocket Error:", err);
+            statusEl.innerText = "Error";
+            statusEl.style.color = "red";
+            log("WebSocket Error");
+        };
+
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                const { driver_id, latitude, longitude } = data;
+
+                driverIdEl.innerText = driver_id.substring(0, 8) + "...";
+                lastUpdateEl.innerText = new Date().toLocaleTimeString();
+                log(`Rx: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+
+                if (markers[driver_id]) {
+                    // Update existing marker
+                    markers[driver_id].setLatLng([latitude, longitude]);
+                } else {
+                    // Create new marker
+                    markers[driver_id] = L.marker([latitude, longitude]).addTo(map)
+                        .bindPopup(`Driver: ${driver_id}`).openPopup();
+                    // Center map on first update
+                    map.setView([latitude, longitude], 15);
+                }
+            } catch (e) {
+                console.error("Error parsing message:", e);
+                log("Error parsing data");
+            }
+        };
+    </script>
+</body>
+</html>
