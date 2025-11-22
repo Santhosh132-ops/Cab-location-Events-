@@ -47,7 +47,7 @@ Before running the project, ensure you have the following installed:
 
 ## ⚡ Quick Start
 
-We have automated the entire setup process. You don't need to manually install dependencies or open multiple terminals.
+I have automated the entire setup process. You don't need to manually install dependencies or open multiple terminals.
 
 1.  **Clone the Repository**
     ```bash
